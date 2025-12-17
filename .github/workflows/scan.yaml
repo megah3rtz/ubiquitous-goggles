@@ -1,0 +1,178 @@
+name: Terraform Module Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'modules/**'
+      - '.github/workflows/security-scan.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'modules/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  scan-vnet-module:
+    name: Scan VNET Module
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov on VNET Module
+        id: checkov-vnet
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: modules/azure-vnet
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-vnet.sarif
+          soft_fail: false
+          quiet: false
+
+      - name: Upload Checkov VNET SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-vnet.sarif
+          category: checkov-vnet
+
+      - name: Run Trivy on VNET Module
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'modules/azure-vnet'
+          format: 'sarif'
+          output: 'trivy-vnet.sarif'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy VNET SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-vnet.sarif
+          category: trivy-vnet
+
+  scan-subnet-module:
+    name: Scan Subnet Module
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov on Subnet Module
+        id: checkov-subnet
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: modules/azure-subnet
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-subnet.sarif
+          soft_fail: false
+          quiet: false
+
+      - name: Upload Checkov Subnet SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-subnet.sarif
+          category: checkov-subnet
+
+      - name: Run Trivy on Subnet Module
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'modules/azure-subnet'
+          format: 'sarif'
+          output: 'trivy-subnet.sarif'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy Subnet SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-subnet.sarif
+          category: trivy-subnet
+
+  scan-nsg-module:
+    name: Scan NSG Module
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov on NSG Module
+        id: checkov-nsg
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: modules/azure-nsg
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-nsg.sarif
+          soft_fail: false
+          quiet: false
+
+      - name: Upload Checkov NSG SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-nsg.sarif
+          category: checkov-nsg
+
+      - name: Run Trivy on NSG Module
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'modules/azure-nsg'
+          format: 'sarif'
+          output: 'trivy-nsg.sarif'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy NSG SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-nsg.sarif
+          category: trivy-nsg
+
+  scan-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [scan-vnet-module, scan-subnet-module, scan-nsg-module]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Summary
+        run: |
+          echo "# Terraform Module Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Module Scan Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| VNET | ${{ needs.scan-vnet-module.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Subnet | ${{ needs.scan-subnet-module.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NSG | ${{ needs.scan-nsg-module.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View detailed results in the Security tab." >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Overall Status
+        if: needs.scan-vnet-module.result == 'failure' || needs.scan-subnet-module.result == 'failure' || needs.scan-nsg-module.result == 'failure'
+        run: |
+          echo "❌ One or more security scans failed"
+          exit 1
