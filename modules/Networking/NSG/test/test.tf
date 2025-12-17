@@ -98,16 +98,16 @@ module "nsg_database" {
 
   security_rules = [
     {
-      name                     = "AllowAppTierSQL"
-      priority                 = 100
-      direction                = "Inbound"
-      access                   = "Allow"
-      protocol                 = "Tcp"
-      source_port_range        = "*"
-      destination_port_ranges  = ["1433", "3306", "5432"]
-      source_address_prefixes  = ["10.0.1.0/24", "10.0.2.0/24"]
+      name                       = "AllowAppTierSQL"
+      priority                   = 100
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_ranges    = ["1433", "3306", "5432"]
+      source_address_prefixes    = ["10.0.1.0/24", "10.0.2.0/24"]
       destination_address_prefix = "*"
-      description              = "Allow database access from app tier"
+      description                = "Allow database access from app tier"
     },
     {
       name                       = "DenyAllInbound"
