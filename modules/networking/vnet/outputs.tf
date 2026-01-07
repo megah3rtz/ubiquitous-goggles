@@ -22,8 +22,3 @@ output "vnet_guid" {
   description = "GUID of the virtual network"
   value       = azurerm_virtual_network.vnet.guid
 }
-
-output "nsg_id" {
-  description = "Id of the NSG attached to the VNET"
-  value       = azurerm_network_security_group.nsg.id
-}
